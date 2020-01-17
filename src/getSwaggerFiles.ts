@@ -38,10 +38,10 @@ export async function* getSwaggerFiles(
     if (!fileContent) {
       signale.scope(config.name).fatal(`swagger file is not available`);
       if (!localFileOp.ok) {
-        signale.scope(config.name).fatal(`local file is not available`);
+        signale.scope(config.name).fatal(`▶ local file is not available`);
       }
       if (!remoteFileOp.ok) {
-        signale.scope(config.name).fatal(`remote file is not available`);
+        signale.scope(config.name).fatal(`▶ remote file is not available`);
       }
       process.exitCode = 1;
       continue;
@@ -110,8 +110,13 @@ function fetchFile(remote: SwaggerRemoteFileDescriptor) {
     const cr = grab(
       {
         protocol: target.protocol,
-        host: target.host,
-        // port: target.port || (target.host === 'https:' ? 443 : 80),
+        host: target.hostname,
+        port:
+          target.port == null
+            ? target.host === 'https:'
+              ? 443
+              : 80
+            : target.port,
         method: 'GET',
         path: target.pathname + target.search,
         headers: remote.username
