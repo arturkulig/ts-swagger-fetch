@@ -15,7 +15,7 @@ export async function* getSwaggerFiles(
   configs: Iterable<SwaggerFileDescriptor>,
   baseDirname: string,
   signale: Signale,
-) {
+): AsyncGenerator<{ config: SwaggerFileDescriptor; spec: Spec }> {
   for (const config of configs) {
     const localFileName = path.resolve(baseDirname, config.file);
     const localFileOp = await loadFile(localFileName);
@@ -25,8 +25,8 @@ export async function* getSwaggerFiles(
     const fileContent = localFileOp.ok
       ? localFileOp.value
       : remoteFileOp.ok
-        ? remoteFileOp.value
-        : null;
+      ? remoteFileOp.value
+      : null;
 
     if (remoteFileOp.ok) {
       const writeOp = await writeFile(localFileName, remoteFileOp.value);
@@ -68,7 +68,7 @@ export async function* getSwaggerFiles(
     }
 
     yield {
-      ...config,
+      config,
       spec: config.overrides ? Object.assign(parsed, config.overrides) : parsed,
     };
   }

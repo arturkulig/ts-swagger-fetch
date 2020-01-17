@@ -3,7 +3,19 @@ import { swaggerSchemaDictToTypeScript } from './swaggerSchemaDictToTypeScript';
 import { capitalize } from './capitalize';
 import { getOperationName } from './getOperationName';
 import { getParameters } from './getParameters';
-import { gatherSchemas } from './gatherSchemas';
+import {
+  gatherSchemas,
+  getReferencedDefinition,
+  isReferencedDefinition,
+} from './gatherSchemas';
+import {
+  Parameter,
+  Response,
+  PathParameter,
+  BodyParameter,
+  QueryParameter,
+  FormDataParameter,
+} from 'swagger-schema-official';
 
 export function getOperationTypes(
   swagger: Spec,
@@ -19,17 +31,44 @@ export function getOperationTypes(
   const opName = getOperationName(operation);
   const OpName = capitalize(opName);
 
+  const pathParameters = parameters.filter(
+    (p): p is PathParameter => p.in === 'path',
+  );
+  const bodyParameters = parameters.filter(
+    (p): p is BodyParameter => p.in === 'body',
+  );
+  const queryParameters = parameters.filter(
+    (p): p is QueryParameter => p.in === 'query',
+  );
+  const formDataParameters = parameters.filter(
+    (p): p is FormDataParameter => p.in === 'formData',
+  );
+
   const fetcherSchemas: SchemaDict = {};
   fetcherSchemas[`${OpName}Request`] = {
     type: 'object',
-    required: parameters.filter(p => p.required).map(p => p.name),
-    properties: parameters.reduce(
-      (properties, parameter) => ({
-        ...properties,
-        [parameter.name]: `schema` in parameter ? parameter.schema : parameter,
-      }),
-      {} as Schema['properties'],
-    ),
+    required: [
+      // 'command',
+      ...(pathParameters.length ? ['path'] : []),
+      ...(bodyParameters.length ? ['body'] : []),
+      ...(queryParameters.length ? ['query'] : []),
+      ...(formDataParameters.length ? ['formData'] : []),
+    ],
+    properties: {
+      // command: { type: 'string', enum: [`${method} ${dir}`] },
+      ...(pathParameters.length
+        ? { path: parameters2ObjDef(pathParameters) }
+        : {}),
+      ...(bodyParameters.length && bodyParameters[0].schema
+        ? { body: bodyParameters[0].schema }
+        : {}),
+      ...(queryParameters.length
+        ? { query: parameters2ObjDef(queryParameters) }
+        : {}),
+      ...(formDataParameters.length
+        ? { formData: parameters2ObjDef(formDataParameters) }
+        : {}),
+    },
   };
 
   const { responses = {} } = operation;
@@ -37,7 +76,13 @@ export function getOperationTypes(
     ? Object.keys(responses).map(kind => {
         const responseCode = parseInt(kind, 10);
         const codeType = isNaN(responseCode) ? 'any' : responseCode.toString();
-        const { schema = { type: 'object' }, description } = responses[kind];
+        const operationDesc = responses[kind];
+        const operationSchema = isReferencedDefinition(operationDesc)
+          ? getReferencedDefinition<Response>(operationDesc.$ref, swagger)
+              .schema
+          : operationDesc;
+        const defaultObjectSchema: Schema = { type: 'object' };
+        const { schema = defaultObjectSchema, description } = operationSchema;
         return {
           kind,
           codeType,
@@ -77,4 +122,14 @@ export function getOperationTypes(
       .map(({ kind }) => `${OpName}${kind}Response`)
       .join(' | ')}`,
   ];
+}
+
+function parameters2ObjDef(parameters: Parameter[]): Schema {
+  return {
+    type: 'object',
+    required: parameters.filter(p => p.required).map(p => p.name),
+    properties: Object.fromEntries(
+      parameters.map(p => [p.name, `schema` in p ? p.schema : p]),
+    ) as Schema['properties'],
+  };
 }

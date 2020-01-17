@@ -3,7 +3,8 @@
     {
         "name": "pet" ,
         "file": "pet.json" ,
-        "url":  "https://generator.swagger.io/api/swagger.json"
+        "url":  "https://generator.swagger.io/api/swagger.json",
+        "factory": true
     }
     ],
     "output": "output"

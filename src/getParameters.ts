@@ -7,6 +7,11 @@ import {
   Security,
 } from './schema';
 import { flatten } from './flatten';
+import {
+  isReferencedDefinition,
+  getReferencedDefinition,
+} from './gatherSchemas';
+import { HeaderParameter, QueryParameter } from 'swagger-schema-official';
 
 export function getParameters(swagger: Spec, dir: string, method: Method) {
   const path = swagger.paths[dir];
@@ -21,24 +26,47 @@ export function getParameters(swagger: Spec, dir: string, method: Method) {
   const policies = flatten(
     security.map(subject => {
       const extPolicies = flatten(
-        Object.keys(subject).map(
-          requirement =>
-            swagger.securityDefinitions &&
-            swagger.securityDefinitions[requirement]
-              ? [swagger.securityDefinitions[requirement]]
-              : [],
+        Object.keys(subject).map(requirement =>
+          swagger.securityDefinitions &&
+          swagger.securityDefinitions[requirement]
+            ? [swagger.securityDefinitions[requirement]]
+            : [],
         ),
       );
       return extPolicies.length ? extPolicies : [subject];
     }),
   );
   return new Array<Parameter>()
-    .concat(operation.parameters || [])
-    .concat(path.parameters || [])
     .concat(
-      policies
-        .filter(isApiKeySecurity)
-        .map(param => ({ type: 'string', in: param.in, name: param.name })),
+      (operation.parameters || []).map(p =>
+        isReferencedDefinition(p)
+          ? getReferencedDefinition<Parameter>(p.$ref, swagger).schema
+          : p,
+      ),
+    )
+    .concat(
+      (path.parameters || []).map(p =>
+        isReferencedDefinition(p)
+          ? getReferencedDefinition<Parameter>(p.$ref, swagger).schema
+          : p,
+      ),
+    )
+    .concat(
+      policies.filter(isApiKeySecurity).map(
+        (security): Parameter =>
+          ({
+            header: {
+              type: 'string',
+              in: 'header',
+              name: 'name' in security ? security.name : '',
+            } as HeaderParameter,
+            query: {
+              type: 'string',
+              in: 'query',
+              name: 'name' in security ? security.name : '',
+            } as QueryParameter,
+          }['in' in security ? security.in : ('header' as 'header')]),
+      ),
       policies.filter(isBasicAuth).map(param => ({
         type: 'string',
         in: 'header',

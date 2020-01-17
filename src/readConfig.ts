@@ -10,6 +10,7 @@ export interface SwaggerFileDescriptor {
   name: string;
   file: string;
   remote: SwaggerRemoteFileDescriptor;
+  factory?: boolean;
   overrides?: Partial<Spec>;
 }
 

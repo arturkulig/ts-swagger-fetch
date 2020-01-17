@@ -2,7 +2,6 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-// import * as ts from 'typescript';
 import * as prettier from 'prettier';
 import * as commander from 'commander';
 import { Signale } from 'signale';
@@ -39,69 +38,45 @@ commander
       configDirname,
       signale.scope('config'),
     );
-    for await (const { name: specName, spec } of swaggers) {
+
+    for await (const { config: swaggerConfig, spec } of swaggers) {
       const outputDir = path.resolve(
         configDirname,
         config.output ? config.output : '',
       );
-      const specSignale = signale.scope(specName);
+      const { name } = swaggerConfig;
+      const specSignale = signale.scope(name);
 
-      const files = processSpec(spec, specSignale);
+      const fileName = path.resolve(outputDir, `${name}.ts`);
+      const output = new Array<string>();
+      output.push('// tslint:disable');
+      output.push(
+        fs.readFileSync(path.resolve(__dirname, '../src/swagFetch.ts'), {
+          encoding: 'utf-8',
+        }),
+      );
+      const fileSignale = signale.scope(name, fileName);
+      const prettierConfig = await prettier.resolveConfig(fileName);
 
-      for (const { opName, file } of files) {
-        saveEndpoint({ outputDir, specName, opName, file });
+      for (const contents of processSpec(swaggerConfig, spec, specSignale)) {
+        output.push(contents);
       }
+
+      let formattedOutput;
+      try {
+        formattedOutput = prettier.format(output.join('\r\n'), {
+          parser: 'typescript',
+          ...prettierConfig,
+        });
+      } catch (e) {
+        fileSignale.error('Failed formatting');
+        console.error(e.message);
+        fs.writeFileSync(fileName, output.join('\r\n'), { encoding: 'utf-8' });
+        process.exitCode = 1;
+        return;
+      }
+      fs.writeFileSync(fileName, formattedOutput, { encoding: 'utf-8' });
     }
   });
 
 commander.parse(process.argv);
-
-async function saveEndpoint({ outputDir, specName, opName, file }) {
-  const fileName = path.resolve(outputDir, `${opName}.tsx`);
-  const fileSignale = signale.scope(specName, fileName);
-
-  try {
-    const prettierConfig = await prettier.resolveConfig(fileName);
-    file = prettier.format(file, {
-      parser: 'typescript',
-      ...prettierConfig,
-    });
-  } catch (e) {
-    fileSignale.error('Failed formatting');
-    console.error(e.message);
-    console.error('----------------------------------------');
-    console.error(file);
-    console.error('------------------EOF-------------------');
-    process.exitCode = 1;
-    return;
-  }
-  fileSignale.complete('formatted');
-
-  await save(fileName, file, fileSignale);
-  fileSignale.complete('stored');
-}
-
-let lastSave = Promise.resolve();
-
-function save(name: string, contents: string, signale: Signale) {
-  return (lastSave = lastSave.then(
-    () =>
-      new Promise<void>((resolve, reject) => {
-        fs.writeFile(
-          name,
-          contents,
-          {
-            encoding: 'utf-8',
-          },
-          err => {
-            if (err) {
-              process.exitCode = 1;
-              signale.fatal(`Unable to save ${name}`);
-              reject();
-            }
-            resolve();
-          },
-        );
-      }),
-  ));
-}

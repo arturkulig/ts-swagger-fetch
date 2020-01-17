@@ -1,11 +1,18 @@
 import { Signale } from 'signale';
 import { Spec, Path } from './schema';
 import { getOperationName } from './getOperationName';
-import { getOperationExecutorFunction } from './getOperationExecutorFunction';
-import { getOperationExecutorComponent } from './getOperationExecutorComponent';
+import { getOperationTypes } from './getOperationTypes';
+import { capitalize } from './capitalize';
+import { SwaggerFileDescriptor } from './readConfig';
 
-export  function* processSpec(swagger: Spec, signale: Signale) {
+export function* processSpec(
+  swaggerConfig: SwaggerFileDescriptor,
+  swagger: Spec,
+  signale: Signale,
+) {
   signale.scope(swagger.basePath).start();
+
+  const operationNames = new Array<string>();
 
   for (const dir of Object.keys(swagger.paths)) {
     signale.scope(swagger.basePath, dir).start();
@@ -20,33 +27,78 @@ export  function* processSpec(swagger: Spec, signale: Signale) {
           method === 'options'
         ) {
           const operation = swagger.paths[dir][method];
+
           if (!operation) {
             signale
               .scope(swagger.basePath, dir, method)
               .warn('is not an operation');
             return;
           }
+
           const opName = getOperationName(operation);
+          const OpName = capitalize(opName);
 
-          const fetcher = getOperationExecutorFunction(swagger, dir, method);
-          const component = getOperationExecutorComponent(swagger, dir, method);
+          yield getOperationTypes(swagger, dir, method).join('\r\n');
 
-          const file = ['// tslint:disable', ...fetcher, ...component]
-            .map(l => (/^\s*$/.test(l) ? '' : l))
-            .join('\n\n');
-
-          yield {
-            opName,
-            file,
-          };
+          operationNames.push(
+            `"${method} ${dir}": { req: ${OpName}Request, res: ${OpName}Responses },`,
+          );
 
           signale.scope(swagger.basePath, dir, method).complete(opName);
+        } else {
+          signale
+            .scope(swagger.basePath, dir, method)
+            .warn(`Method ${method} of ${dir} is not supported`);
         }
       } catch (e) {
         signale.scope(swagger.basePath, dir, method).fatal(e);
         process.exitCode = 1;
       }
     }
+  }
+
+  const { name, factory = false } = swaggerConfig;
+
+  yield `
+    export interface ${name}ReqResRepo {
+      ${operationNames.join('\r\n')}
+    }`;
+
+  if (!factory) {
+    yield `
+      export function ${name}<T extends keyof ${name}ReqResRepo>
+      (command: T, request: ${name}ReqResRepo[T]['req'], init?: RequestInit):
+      Promise<${name}ReqResRepo[T]['res']>
+      {
+        return swagFetch(
+          "${swagger.host}${swagger.basePath}",
+          command,
+          request,
+          init
+        );
+      }
+      `;
+  }
+
+  if (factory) {
+    yield `
+      export function ${name}Factory
+      (fetch = window.fetch)
+      {
+        return  function ${name}<T extends keyof ${name}ReqResRepo>
+                  (command: T, request: ${name}ReqResRepo[T]['req'], init?: RequestInit):
+                  Promise<${name}ReqResRepo[T]['res']>
+                  {
+                    return swagFetch(
+                      "${swagger.host}${swagger.basePath}",
+                      command,
+                      request,
+                      init,
+                      fetch
+                    );
+                  }
+      }
+  `;
   }
 
   signale.scope(swagger.basePath).complete(``);

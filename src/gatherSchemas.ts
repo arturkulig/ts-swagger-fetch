@@ -1,6 +1,7 @@
 import { Spec, SchemaDict, Schema } from './schema';
 import { findSchemaReferences } from './findSchemaReferences';
 import { flatten } from './flatten';
+import { Reference } from 'swagger-schema-official';
 
 export function gatherSchemas(
   spec: Spec,
@@ -37,23 +38,26 @@ function getRefs(defs: SchemaDict) {
   );
 }
 
-function getReferencedDefinitions(names: string[], root: Spec) {
+export function getReferencedDefinitions(names: string[], root: Spec) {
   if (names.length === 0) {
     return {} as SchemaDict;
   }
-  return names.reduce(
-    (result, ref) => {
-      const { name, schema } = getReferencedDefinition(ref, root);
-      return { ...result, [`_${name}`]: schema };
-    },
-    {} as SchemaDict,
-  );
+  return names.reduce((result, ref) => {
+    const { name, schema } = getReferencedDefinition(ref, root);
+    return { ...result, [`_${name}`]: schema };
+  }, {} as SchemaDict);
 }
 
-function getReferencedDefinition(
+export function isReferencedDefinition<T>(
+  subject: T | Reference,
+): subject is Reference {
+  return '$ref' in subject;
+}
+
+export function getReferencedDefinition<T = Schema>(
   path: string,
   root: Spec,
-): { name: string; schema: Schema } {
+): { name: string; schema: T } {
   let remainingPath = path.split('/').filter(chunk => chunk !== '#');
   const name = remainingPath.slice(-1)[0];
   let result: any = root;
