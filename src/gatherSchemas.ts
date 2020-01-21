@@ -2,6 +2,7 @@ import { Spec, SchemaDict, Schema } from './schema';
 import { findSchemaReferences } from './findSchemaReferences';
 import { flatten } from './flatten';
 import { Reference } from 'swagger-schema-official';
+import { getInterfaceName } from './getInterfaceName';
 
 export function gatherSchemas(
   spec: Spec,
@@ -44,7 +45,7 @@ export function getReferencedDefinitions(names: string[], root: Spec) {
   }
   return names.reduce((result, ref) => {
     const { name, schema } = getReferencedDefinition(ref, root);
-    return { ...result, [`_${name}`]: schema };
+    return { ...result, [getInterfaceName(name)]: schema };
   }, {} as SchemaDict);
 }
 

@@ -92,31 +92,16 @@ function loadFile(filename: string) {
 function fetchFile(remote: SwaggerRemoteFileDescriptor) {
   return new Promise<Result<string>>((resolve, reject) => {
     const target = new URL(remote.url);
-    const grab = (
-      options: {
-        protocol?: string;
-        host?: string;
-        port?: number | string;
-        method?: string;
-        path?: string;
-        headers?: http.OutgoingHttpHeaders;
-      },
-      callback?: (res: http.IncomingMessage) => void,
-    ) => {
-      return target.protocol === 'https:'
-        ? https.get(options, callback)
-        : http.get(options, callback);
-    };
-    const cr = grab(
+    const request = grab(
       {
         protocol: target.protocol,
         host: target.hostname,
         port:
-          target.port == null
-            ? target.host === 'https:'
-              ? 443
-              : 80
-            : target.port,
+          target.port != null
+            ? target.port
+            : target.host === 'https:'
+            ? 443
+            : 80,
         method: 'GET',
         path: target.pathname + target.search,
         headers: remote.username
@@ -140,11 +125,27 @@ function fetchFile(remote: SwaggerRemoteFileDescriptor) {
         });
       },
     );
-    cr.on('error', err => {
+    request.on('error', err => {
       console.error({ err });
       resolve({ ok: false });
     });
   });
+}
+
+function grab(
+  options: {
+    protocol?: string;
+    host?: string;
+    port?: number | string;
+    method?: string;
+    path?: string;
+    headers?: http.OutgoingHttpHeaders;
+  },
+  callback?: (res: http.IncomingMessage) => void,
+) {
+  return options.protocol === 'https:'
+    ? https.get(options, callback)
+    : http.get(options, callback);
 }
 
 function writeFile(filename: string, data: string): Promise<Result<null>> {

@@ -10,12 +10,13 @@ export function* processSpec(
   swagger: Spec,
   signale: Signale,
 ) {
-  signale.scope(swagger.basePath).start();
+  const basePath = swagger.basePath || '';
+  signale.scope(basePath).start();
 
   const operationNames = new Array<string>();
 
   for (const dir of Object.keys(swagger.paths)) {
-    signale.scope(swagger.basePath, dir).start();
+    signale.scope(basePath, dir).start();
     for (const method of Object.keys(swagger.paths[dir]) as Array<keyof Path>) {
       try {
         if (
@@ -29,9 +30,7 @@ export function* processSpec(
           const operation = swagger.paths[dir][method];
 
           if (!operation) {
-            signale
-              .scope(swagger.basePath, dir, method)
-              .warn('is not an operation');
+            signale.scope(basePath, dir, method).warn('is not an operation');
             return;
           }
 
@@ -44,14 +43,14 @@ export function* processSpec(
             `"${method} ${dir}": { req: ${OpName}Request, res: ${OpName}Responses },`,
           );
 
-          signale.scope(swagger.basePath, dir, method).complete(opName);
+          signale.scope(basePath, dir, method).complete(opName);
         } else {
           signale
-            .scope(swagger.basePath, dir, method)
+            .scope(basePath, dir, method)
             .warn(`Method ${method} of ${dir} is not supported`);
         }
       } catch (e) {
-        signale.scope(swagger.basePath, dir, method).fatal(e);
+        signale.scope(basePath, dir, method).fatal(e);
         process.exitCode = 1;
       }
     }
@@ -71,11 +70,11 @@ export function* processSpec(
       Promise<${name}ReqResRepo[T]['res']>
       {
         return swagFetch(
-          "${swagger.host}${swagger.basePath}",
+          "${swagger.host}${basePath}",
           command,
           request,
           init
-        );
+        ) as any;
       }
       `;
   }
@@ -86,20 +85,20 @@ export function* processSpec(
       (fetch = window.fetch)
       {
         return  function ${name}<T extends keyof ${name}ReqResRepo>
-                  (command: T, request: ${name}ReqResRepo[T]['req'], init?: RequestInit):
-                  Promise<${name}ReqResRepo[T]['res']>
-                  {
-                    return swagFetch(
-                      "${swagger.host}${swagger.basePath}",
-                      command,
-                      request,
-                      init,
-                      fetch
-                    );
-                  }
+                (command: T, request: ${name}ReqResRepo[T]['req'], init?: RequestInit):
+                Promise<${name}ReqResRepo[T]['res']>
+                {
+                  return swagFetch(
+                    "${swagger.host}${basePath}",
+                    command,
+                    request,
+                    init,
+                    fetch
+                  ) as any;
+                }
       }
   `;
   }
 
-  signale.scope(swagger.basePath).complete(``);
+  signale.scope(basePath).complete(``);
 }

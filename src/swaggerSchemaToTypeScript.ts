@@ -1,49 +1,36 @@
 import { Schema } from './schema';
+import { getInterfaceName } from './getInterfaceName';
 
 export function swaggerSchemaToTypeScript(def: Schema, dir: string): string {
   if ('$ref' in def && typeof def.$ref === 'string') {
     const [, name = null] = /#\/definitions\/([^/]+)/.exec(def.$ref) || [];
     if (name) {
-      return `_${name}`;
+      return getInterfaceName(name);
     }
     throw new Error(`${def.$ref} is unrecognized reference`);
   }
   if ('type' in def) {
+    if (def.enum instanceof Array) {
+      return def.enum
+        .map(v => {
+          if (typeof v === 'string') {
+            return JSON.stringify(v);
+          }
+          if (typeof v === 'number') {
+            return JSON.stringify(v.toString());
+          }
+          return null;
+        })
+        .filter(<T>(item: T | null | undefined): item is T => item != null)
+        .join(' | ');
+    }
     if (def.type === 'boolean') {
       return 'boolean';
     }
     if (def.type === 'number' || def.type === 'integer') {
-      // if (def.enum instanceof Array) {
-      //   return def.enum
-      //     .map(v => {
-      //       if (typeof v === 'string') {
-      //         return parseFloat(v).toString();
-      //       }
-      //       if (typeof v === 'number') {
-      //         return v.toString();
-      //       }
-      //       return null;
-      //     })
-      //     .filter(<T>(item: T | null | undefined): item is T => item != null)
-      //     .join(' | ');
-      // }
       return 'number';
     }
     if (def.type === 'string') {
-      if (def.enum instanceof Array) {
-        return def.enum
-          .map(v => {
-            if (typeof v === 'string') {
-              return JSON.stringify(v);
-            }
-            if (typeof v === 'number') {
-              return JSON.stringify(v.toString());
-            }
-            return null;
-          })
-          .filter(<T>(item: T | null | undefined): item is T => item != null)
-          .join(' | ');
-      }
       return 'string';
     }
     if (def.type === 'array') {
