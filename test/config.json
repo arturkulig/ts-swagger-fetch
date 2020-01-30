@@ -1,11 +1,13 @@
 {
     "swaggers": [
-    {
-        "name": "pet" ,
-        "file": "pet.json" ,
-        "url":  "https://generator.swagger.io/api/swagger.json",
-        "factory": true
-    }
+        {
+            "name": "pet",
+            "file": "pet.json",
+            "remote": {
+                "url": "https://generator.swagger.io/api/swagger.json"
+            },
+            "factory": true
+        }
     ],
     "output": "output"
 }

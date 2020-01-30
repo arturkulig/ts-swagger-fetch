@@ -57,6 +57,13 @@ export function* processSpec(
   }
 
   const { name, factory = false } = swaggerConfig;
+  const protocolAndHost = [
+    ((swagger.schemes || []).includes('https')
+      ? 'https'
+      : (swagger.schemes || [])[0]) || 'http',
+    '://',
+    swagger.host || new URL(swaggerConfig.remote.url).host,
+  ].join('');
 
   yield `
     export interface ${name}ReqResRepo {
@@ -70,7 +77,7 @@ export function* processSpec(
       Promise<${name}ReqResRepo[T]['res']>
       {
         return swagFetch(
-          "${swagger.host}${basePath}",
+          "${protocolAndHost}${basePath}",
           command,
           request,
           init
@@ -89,7 +96,7 @@ export function* processSpec(
                 Promise<${name}ReqResRepo[T]['res']>
                 {
                   return swagFetch(
-                    "${swagger.host}${basePath}",
+                    "${protocolAndHost}${basePath}",
                     command,
                     request,
                     init,
