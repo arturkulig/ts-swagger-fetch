@@ -1,6 +1,6 @@
 {
   "name": "ts-swagger-fetch",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "",
   "bin": {
     "make-swagger-fetch": "./bin/cli.js",
