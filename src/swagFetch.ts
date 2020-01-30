@@ -46,7 +46,7 @@ async function swagFetch(
     ...init,
   });
 
-  if (response.headers.get('content-type') === 'application/json') {
+  if (response.headers.get('content-type')?.startsWith('application/json')) {
     const json = await response.json();
     return {
       status: response.status,
