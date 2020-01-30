@@ -23,9 +23,9 @@ async function swagFetch(
   for (const paramK of Object.keys(request.path || {})) {
     pathname = pathname.replace(`{${paramK}}`, request.path[paramK]);
   }
-  const urlObject = new URL(`${host}${pathname}`);
+  const url = new URL(`${host}${pathname}`);
   for (const queryK of Object.keys(request.query || {})) {
-    urlObject.searchParams.append(queryK, request.query.queryK);
+    url.searchParams.append(queryK, request.query[queryK]);
   }
 
   let body: BodyInit | null = null;
@@ -35,11 +35,11 @@ async function swagFetch(
   } else if (request.form) {
     body = new FormData();
     for (const formK of Object.keys(request.form)) {
-      body.append(formK, request.form);
+      body.append(formK, request.form[formK]);
     }
   }
 
-  const response = await fetch(urlObject.href, {
+  const response = await fetch(url.href, {
     method,
     credentials: 'include',
     body,

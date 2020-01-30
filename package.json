@@ -27,6 +27,7 @@
     "node": "^10"
   },
   "devDependencies": {
+    "@types/node": "^13.5.2",
     "@types/swagger-schema-official": "^2.0.20",
     "typescript": "^3.7.5"
   }
