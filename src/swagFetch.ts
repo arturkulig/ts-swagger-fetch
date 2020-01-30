@@ -41,7 +41,6 @@ async function swagFetch(
 
   const response = await fetch(url.href, {
     method,
-    credentials: 'include',
     body,
     headers,
     ...init,
