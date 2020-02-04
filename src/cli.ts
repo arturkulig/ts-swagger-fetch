@@ -50,6 +50,7 @@ commander
       const fileName = path.resolve(outputDir, `${name}.ts`);
       const output = new Array<string>();
       output.push('// tslint:disable');
+      output.push('/* eslint-disable */');
       output.push(
         fs.readFileSync(path.resolve(__dirname, '../src/swagFetch.ts'), {
           encoding: 'utf-8',

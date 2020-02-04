@@ -95,13 +95,13 @@ export function* processSpec(
                 (command: T, request: ${name}ReqResRepo[T]['req'], init?: RequestInit):
                 Promise<${name}ReqResRepo[T]['res']>
                 {
-                  return swagFetch(
+                  return (swagFetch(
                     "${protocolAndHost}${basePath}",
                     command,
                     request,
                     init,
                     fetch
-                  ) as any;
+                  ) as any) as Promise<${name}ReqResRepo[T]['res']>;
                 }
       }
   `;
