@@ -1,3 +1,11 @@
+import {
+  Parameter,
+  Response,
+  PathParameter,
+  BodyParameter,
+  QueryParameter,
+  FormDataParameter,
+} from 'swagger-schema-official';
 import { Spec, Schema, Method, SchemaDict } from './schema';
 import { swaggerSchemaDictToTypeScript } from './swaggerSchemaDictToTypeScript';
 import { capitalize } from './capitalize';
@@ -8,20 +16,15 @@ import {
   getReferencedDefinition,
   isReferencedDefinition,
 } from './gatherSchemas';
-import {
-  Parameter,
-  Response,
-  PathParameter,
-  BodyParameter,
-  QueryParameter,
-  FormDataParameter,
-} from 'swagger-schema-official';
+import { InterfaceType } from './InterfaceType';
+import { flatten } from './flatten';
+import { getResponseMIMEType } from './getMIMEType';
 
 export function getOperationTypes(
   swagger: Spec,
   dir: string,
   method: Method,
-): string[] {
+): InterfaceType[] {
   const operation = swagger.paths[dir][method];
   if (!operation) {
     throw new Error('createTypes: operation is empty');
@@ -72,6 +75,7 @@ export function getOperationTypes(
   };
 
   const { responses = {} } = operation;
+  const responseMimeType = getResponseMIMEType(operation);
   const responsesList = responses
     ? Object.keys(responses).map(kind => {
         const responseCode = parseInt(kind, 10);
@@ -93,11 +97,10 @@ export function getOperationTypes(
     : [];
 
   responsesList.forEach(response => {
-    if (!response.schema) {
-      return;
-    }
     fetcherSchemas[capitalize(`${opName}${response.kind}ResponseContent`)] =
-      response.schema;
+      response.schema && responseMimeType === 'application/json'
+        ? response.schema
+        : {};
   });
 
   const definitions = gatherSchemas(swagger, fetcherSchemas);
@@ -105,22 +108,29 @@ export function getOperationTypes(
   return [
     ...swaggerSchemaDictToTypeScript(definitions),
 
-    ...responsesList.map(response => {
-      return `${
-        response.description
-          ? `// ${response.description}
-`
-          : ''
-      }export interface ${OpName}${response.kind}Response {
-        status: ${response.codeType},
-        text: string,
-        json?: ${OpName}${response.kind}ResponseContent
-      }`;
-    }),
+    ...flatten(
+      responsesList.map((response): InterfaceType[] => {
+        return [
+          {
+            name: `${OpName}${response.kind}Response`,
+            comment: response.description,
+            content: `{
+            status: ${response.codeType},
+            text: string,
+            arrayBuffer: ArrayBuffer,
+            json: ${OpName}${response.kind}ResponseContent
+          }`,
+          },
+        ];
+      }),
+    ),
 
-    `export type ${OpName}Responses = ${responsesList
-      .map(({ kind }) => `${OpName}${kind}Response`)
-      .join(' | ')}`,
+    {
+      name: `${OpName}Responses`,
+      content: `${responsesList
+        .map(({ kind }) => `${OpName}${kind}Response`)
+        .join(' | ')}`,
+    },
   ];
 }
 

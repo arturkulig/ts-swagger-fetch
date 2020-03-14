@@ -4,16 +4,19 @@ import { getOperationName } from './getOperationName';
 import { getOperationTypes } from './getOperationTypes';
 import { capitalize } from './capitalize';
 import { SwaggerFileDescriptor } from './readConfig';
+import { InterfaceType } from './InterfaceType';
+import { formatExportedInterface } from './formatExportedInterface';
 
 export function* processSpec(
   swaggerConfig: SwaggerFileDescriptor,
   swagger: Spec,
   signale: Signale,
-) {
+): Iterable<string> {
   const basePath = swagger.basePath || '';
   signale.scope(basePath).start();
 
-  const operationNames = new Array<string>();
+  const supportTypeDefinitions: Record<string, InterfaceType> = {};
+  const operationDefinitions = new Array<string>();
 
   for (const dir of Object.keys(swagger.paths)) {
     signale.scope(basePath, dir).start();
@@ -37,9 +40,11 @@ export function* processSpec(
           const opName = getOperationName(operation);
           const OpName = capitalize(opName);
 
-          yield getOperationTypes(swagger, dir, method).join('\r\n');
+          for (const supportType of getOperationTypes(swagger, dir, method)) {
+            supportTypeDefinitions[supportType.name] = supportType;
+          }
 
-          operationNames.push(
+          operationDefinitions.push(
             `"${method} ${dir}": { req: ${OpName}Request, res: ${OpName}Responses },`,
           );
 
@@ -56,7 +61,17 @@ export function* processSpec(
     }
   }
 
+  for (const supportType of Object.values(supportTypeDefinitions)) {
+    yield formatExportedInterface(supportType);
+  }
+
   const { name, factory = false } = swaggerConfig;
+
+  yield `
+    export interface ${name}ReqResRepo {
+      ${operationDefinitions.join('\r\n')}
+    }`;
+
   const protocolAndHost = [
     ((swagger.schemes || []).includes('https')
       ? 'https'
@@ -64,11 +79,6 @@ export function* processSpec(
     '://',
     swagger.host || new URL(swaggerConfig.remote.url).host,
   ].join('');
-
-  yield `
-    export interface ${name}ReqResRepo {
-      ${operationNames.join('\r\n')}
-    }`;
 
   if (!factory) {
     yield `

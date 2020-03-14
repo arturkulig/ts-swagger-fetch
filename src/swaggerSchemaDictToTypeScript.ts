@@ -1,23 +1,12 @@
 import { SchemaDict } from './schema';
 import { swaggerSchemaToTypeScript } from './swaggerSchemaToTypeScript';
+import { InterfaceType } from './InterfaceType';
 
-export function swaggerSchemaDictToTypeScript(dict: SchemaDict): string[] {
-  const tsDefs = [] as string[];
-
-  for (const typeName of Object.keys(dict)) {
-    tsDefs.push(
-      exportInNamespace(
-        typeName,
-        swaggerSchemaToTypeScript(dict[typeName], typeName),
-      ),
-    );
-  }
-
-  return tsDefs;
-}
-
-function exportInNamespace(name: string, def: string): string {
-  return `
-    export ${def[0] === '{' ? `interface ${name} ` : `type ${name} = `} ${def}
-  `;
+export function swaggerSchemaDictToTypeScript(dict: SchemaDict) {
+  return Object.entries(dict).map(
+    ([name, value]): InterfaceType => ({
+      name,
+      content: swaggerSchemaToTypeScript(value, name),
+    }),
+  );
 }

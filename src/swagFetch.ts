@@ -16,6 +16,7 @@ async function swagFetch(
   readonly status: number;
   readonly json: unknown;
   readonly text: string;
+  readonly arrayBuffer: ArrayBuffer;
 }> {
   const headers = { ...(request.headers || {}) };
   const [method, ...pathNameParts] = command.split(' ');
@@ -54,14 +55,22 @@ async function swagFetch(
       get text() {
         return JSON.stringify(json);
       },
+      get arrayBuffer() {
+        return new TextEncoder().encode(JSON.stringify(json));
+      },
     };
   }
 
+  const arrayBuffer = await response.arrayBuffer();
+
   return {
     status: response.status,
-    text: await response.text(),
     get json() {
-      throw new Error('Response is not a JSON');
+      return JSON.parse(new TextDecoder().decode(arrayBuffer));
     },
+    get text() {
+      return new TextDecoder().decode(arrayBuffer);
+    },
+    arrayBuffer,
   };
 }
