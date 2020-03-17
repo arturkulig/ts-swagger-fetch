@@ -72,12 +72,19 @@ export function* processSpec(
       ${operationDefinitions.join('\r\n')}
     }`;
 
-  const protocolAndHost = [
-    ((swagger.schemes || []).includes('https')
+  const swaggerProtocol =
+    !swagger.schemes || !swagger.schemes.length
+      ? null
+      : swagger.schemes.includes('https')
       ? 'https'
-      : (swagger.schemes || [])[0]) || 'http',
-    '://',
-    swagger.host || new URL(swaggerConfig.remote.url).host,
+      : swagger.schemes[0];
+
+  const swaggerHost =
+    'host' in swagger ? swagger.host : new URL(swaggerConfig.remote.url).host;
+
+  const protocolAndHost = [
+    swaggerProtocol && swaggerHost ? `${swaggerProtocol}:` : '',
+    swaggerHost ? `//${swaggerHost}` : '',
   ].join('');
 
   if (!factory) {

@@ -24,7 +24,7 @@ async function swagFetch(
   for (const paramK of Object.keys(request.path || {})) {
     pathname = pathname.replace(`{${paramK}}`, request.path[paramK]);
   }
-  const url = new URL(`${host}${pathname}`);
+  const url = new URL(`${host}${pathname}`, window.location.toString());
   for (const queryK of Object.keys(request.query || {})) {
     url.searchParams.append(queryK, request.query[queryK]);
   }
