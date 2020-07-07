@@ -28,7 +28,8 @@ export function* processSpec(
           method === 'post' ||
           method === 'delete' ||
           method === 'head' ||
-          method === 'options'
+          method === 'options' ||
+          method === 'patch'
         ) {
           const operation = swagger.paths[dir][method];
 
