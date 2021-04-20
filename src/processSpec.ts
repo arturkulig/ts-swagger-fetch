@@ -88,6 +88,14 @@ export function* processSpec(
     swaggerHost ? `//${swaggerHost}` : '',
   ].join('');
 
+  yield `
+    export const ${name}Config = {
+      host: "${protocolAndHost}",
+      path: "${basePath}",
+      url: "${protocolAndHost}${basePath}",
+    }
+  `;
+
   if (!factory) {
     yield `
       export function ${name}<T extends keyof ${name}ReqResRepo>
