@@ -132,6 +132,19 @@
                             "typescript-jquery",
                             "typescript-node"
                         ]
+                    },
+                    {
+                        "in": "path",
+                        "name": "langType",
+                        "description": "blah blah",
+                        "required": false,
+                        "type": "integer",
+                        "format": "int32",
+                        "enum": [
+                            0,
+                            1,
+                            2
+                        ]
                     }
                 ],
                 "responses": {

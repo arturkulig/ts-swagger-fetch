@@ -8,16 +8,22 @@ export function findSchemaReferences(
   try {
     if ('type' in def) {
       if (def.type === 'object') {
-        if (!('properties' in def) || !def.properties) {
-          return [];
-        }
-        const { properties } = def;
+        const properties = 'properties' in def ? def.properties : {};
         return properties
-          ? flatten(
-              Object.keys(properties).map(p =>
-                findSchemaReferences(properties[p], path.concat(`.${p}`)),
+          ? [
+              ...flatten(
+                Object.keys(properties).map(p =>
+                  findSchemaReferences(properties[p], path.concat(`.${p}`)),
+                ),
               ),
-            )
+              ...('additionalProperties' in def &&
+              typeof def.additionalProperties === 'object'
+                ? findSchemaReferences(
+                    def.additionalProperties,
+                    path.concat('[additionalProperties]'),
+                  )
+                : []),
+            ]
           : [];
       }
       if (def.type === 'array') {

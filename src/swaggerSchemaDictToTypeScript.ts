@@ -6,7 +6,7 @@ export function swaggerSchemaDictToTypeScript(dict: SchemaDict) {
   return Object.entries(dict).map(
     ([name, value]): InterfaceType => ({
       name,
-      content: swaggerSchemaToTypeScript(value, name),
+      ...swaggerSchemaToTypeScript(value, name),
     }),
   );
 }

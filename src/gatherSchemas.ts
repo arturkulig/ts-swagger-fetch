@@ -61,12 +61,17 @@ export function getReferencedDefinition<T = Schema>(
 ): { name: string; schema: T } {
   let remainingPath = path.split('/').filter(chunk => chunk !== '#');
   const name = remainingPath.slice(-1)[0];
+
   let result: any = root;
   while (remainingPath.length) {
     if (result == null) {
       throw new Error(`Swagger file has no definition for ${path}`);
     }
-    result = result[remainingPath.splice(0, 1)[0]];
+    const step = remainingPath.shift();
+    if (step == null) {
+      throw new Error(`Empty step after ${path}`);
+    }
+    result = result[step];
   }
   return { name, schema: result };
 }

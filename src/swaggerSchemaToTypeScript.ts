@@ -1,72 +1,121 @@
 import { Schema } from './schema';
 import { getInterfaceName } from './getInterfaceName';
 
-export function swaggerSchemaToTypeScript(def: Schema, dir: string): string {
+export function swaggerSchemaToTypeScript(
+  def: Schema,
+  dir: string,
+): { content: string; comment: string | undefined } {
   if ('$ref' in def && typeof def.$ref === 'string') {
     const [, name = null] = /#\/definitions\/([^/]+)/.exec(def.$ref) || [];
     if (name) {
-      return getInterfaceName(name);
+      return {
+        content: getInterfaceName(name),
+        comment: def.description,
+      };
     }
     throw new Error(`${def.$ref} is unrecognized reference`);
   }
   if ('type' in def) {
     if (def.enum instanceof Array) {
-      return def.enum
-        .map(v => {
-          if (typeof v === 'string') {
-            return JSON.stringify(v);
-          }
-          if (typeof v === 'number') {
-            return JSON.stringify(v.toString());
-          }
-          return null;
-        })
-        .filter(<T>(item: T | null | undefined): item is T => item != null)
-        .join(' | ');
+      return {
+        content: def.enum
+          .map(v => {
+            if (typeof v === 'string') {
+              return JSON.stringify(v);
+            }
+            if (typeof v === 'number') {
+              return JSON.stringify(v);
+            }
+            return null;
+          })
+          .filter(<T>(item: T | null | undefined): item is T => item != null)
+          .join(' | '),
+        comment: def.description,
+      };
     }
     if (def.type === 'boolean') {
-      return 'boolean';
+      return { content: 'boolean', comment: def.description };
     }
     if (def.type === 'number' || def.type === 'integer') {
-      return 'number';
+      return { content: 'number', comment: def.description };
     }
     if (def.type === 'string') {
-      return 'string';
+      return { content: 'string', comment: def.description };
     }
     if (def.type === 'array') {
       const { items } = def;
       if (!items) {
-        return 'any[]';
+        return {
+          content: 'any[]',
+          comment: def.description,
+        };
       }
       if (items instanceof Array) {
-        return `Array<
+        return {
+          content: `Array<
           ${items
             .map((item, i) => swaggerSchemaToTypeScript(item, `${dir}[${i}]`))
-            .map(type => (items.length > 1 ? `| ${type}` : type))}
-          >`;
+            .map(
+              type =>
+                `${type.content} ${
+                  type.comment ? ` /* ${type.comment} */` : ''
+                }`,
+            )
+            .join(' | ')}
+          >`,
+          comment: def.description,
+        };
       }
-      return `Array<${swaggerSchemaToTypeScript(items, `${dir}[]`)}
-        >`;
+      const itemsDefinition = swaggerSchemaToTypeScript(items, `${dir}[]`);
+      return {
+        content: `Array<${itemsDefinition.content}${
+          itemsDefinition.comment ? ` /* ${itemsDefinition.comment} */` : ''
+        }>`,
+        comment: def.description,
+      };
     }
     if (def.type === 'object') {
-      const { properties, required } = def;
-      if (!properties) {
-        return 'any';
+      const { properties, required, additionalProperties } = def;
+      if (!properties && !additionalProperties) {
+        return { content: 'Record<string, any>', comment: def.description };
       }
-      return `{
+      const definitions = [
+        ...(properties
+          ? [
+              `{
           ${Object.keys(properties)
             .map(p => {
               const isRequired = required && required.indexOf(p) >= 0;
-              return `'${p}'${
-                isRequired ? '' : '?'
-              }: ${swaggerSchemaToTypeScript(properties[p], `${dir}.${p}`)},`;
+              const propDefinition = swaggerSchemaToTypeScript(
+                properties[p],
+                `${dir}.${p}`,
+              );
+              return `${
+                propDefinition.comment
+                  ? `/** ${propDefinition.comment} */\n`
+                  : ''
+              }'${p}'${isRequired ? '' : '?'}: ${propDefinition.content},`;
             })
             .join('\n')}
-        }`;
+        }`,
+            ]
+          : []),
+        ...(typeof additionalProperties === 'object' &&
+        typeof additionalProperties.$ref === 'string'
+          ? [additionalProperties.$ref.split('/').slice(-1)[0]]
+          : []),
+      ];
+
+      return {
+        content: definitions.length
+          ? definitions.join(' & ')
+          : 'Record<string, any>',
+        comment: def.description,
+      };
     }
     if (def.type === 'file') {
-      return 'Blob';
+      return { content: 'Blob', comment: def.description };
     }
   }
-  return 'void';
+  return { content: 'void', comment: def.description };
 }
