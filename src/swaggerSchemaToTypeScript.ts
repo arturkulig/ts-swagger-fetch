@@ -1,24 +1,27 @@
 import { Schema } from './schema';
 import { getInterfaceName } from './getInterfaceName';
+import { SwaggerProcessingOptions } from './readConfig';
 
 export function swaggerSchemaToTypeScript(
-  def: Schema,
+  definition: Schema,
   dir: string,
+  processingOptions: SwaggerProcessingOptions,
 ): { content: string; comment: string | undefined } {
-  if ('$ref' in def && typeof def.$ref === 'string') {
-    const [, name = null] = /#\/definitions\/([^/]+)/.exec(def.$ref) || [];
+  if ('$ref' in definition && typeof definition.$ref === 'string') {
+    const [, name = null] =
+      /#\/definitions\/([^/]+)/.exec(definition.$ref) || [];
     if (name) {
       return {
         content: getInterfaceName(name),
-        comment: def.description,
+        comment: definition.description,
       };
     }
-    throw new Error(`${def.$ref} is unrecognized reference`);
+    throw new Error(`${definition.$ref} is unrecognized reference`);
   }
-  if ('type' in def) {
-    if (def.enum instanceof Array) {
+  if ('type' in definition) {
+    if (definition.enum instanceof Array) {
       return {
-        content: def.enum
+        content: definition.enum
           .map(v => {
             if (typeof v === 'string') {
               return JSON.stringify(v);
@@ -30,31 +33,37 @@ export function swaggerSchemaToTypeScript(
           })
           .filter(<T>(item: T | null | undefined): item is T => item != null)
           .join(' | '),
-        comment: def.description,
+        comment: definition.description,
       };
     }
-    if (def.type === 'boolean') {
-      return { content: 'boolean', comment: def.description };
+    if (definition.type === 'boolean') {
+      return { content: 'boolean', comment: definition.description };
     }
-    if (def.type === 'number' || def.type === 'integer') {
-      return { content: 'number', comment: def.description };
+    if (definition.type === 'number' || definition.type === 'integer') {
+      return { content: 'number', comment: definition.description };
     }
-    if (def.type === 'string') {
-      return { content: 'string', comment: def.description };
+    if (definition.type === 'string') {
+      return { content: 'string', comment: definition.description };
     }
-    if (def.type === 'array') {
-      const { items } = def;
+    if (definition.type === 'array') {
+      const { items } = definition;
       if (!items) {
         return {
           content: 'any[]',
-          comment: def.description,
+          comment: definition.description,
         };
       }
       if (items instanceof Array) {
         return {
           content: `Array<
           ${items
-            .map((item, i) => swaggerSchemaToTypeScript(item, `${dir}[${i}]`))
+            .map((item, i) =>
+              swaggerSchemaToTypeScript(
+                item,
+                `${dir}[${i}]`,
+                processingOptions,
+              ),
+            )
             .map(
               type =>
                 `${type.content} ${
@@ -63,21 +72,28 @@ export function swaggerSchemaToTypeScript(
             )
             .join(' | ')}
           >`,
-          comment: def.description,
+          comment: definition.description,
         };
       }
-      const itemsDefinition = swaggerSchemaToTypeScript(items, `${dir}[]`);
+      const itemsDefinition = swaggerSchemaToTypeScript(
+        items,
+        `${dir}[]`,
+        processingOptions,
+      );
       return {
         content: `Array<${itemsDefinition.content}${
           itemsDefinition.comment ? ` /* ${itemsDefinition.comment} */` : ''
         }>`,
-        comment: def.description,
+        comment: definition.description,
       };
     }
-    if (def.type === 'object') {
-      const { properties, required, additionalProperties } = def;
+    if (definition.type === 'object') {
+      const { properties, required, additionalProperties } = definition;
       if (!properties && !additionalProperties) {
-        return { content: 'Record<string, any>', comment: def.description };
+        return {
+          content: 'Record<string, any>',
+          comment: definition.description,
+        };
       }
       const definitions = [
         ...(properties
@@ -85,10 +101,13 @@ export function swaggerSchemaToTypeScript(
               `{
           ${Object.keys(properties)
             .map(p => {
-              const isRequired = required && required.indexOf(p) >= 0;
+              const isRequired =
+                processingOptions.propertiesAlwaysRequired ||
+                (required && required.indexOf(p) >= 0);
               const propDefinition = swaggerSchemaToTypeScript(
                 properties[p],
                 `${dir}.${p}`,
+                processingOptions,
               );
               return `${
                 propDefinition.comment
@@ -110,12 +129,12 @@ export function swaggerSchemaToTypeScript(
         content: definitions.length
           ? definitions.join(' & ')
           : 'Record<string, any>',
-        comment: def.description,
+        comment: definition.description,
       };
     }
-    if (def.type === 'file') {
-      return { content: 'Blob', comment: def.description };
+    if (definition.type === 'file') {
+      return { content: 'Blob', comment: definition.description };
     }
   }
-  return { content: 'void', comment: def.description };
+  return { content: 'void', comment: definition.description };
 }

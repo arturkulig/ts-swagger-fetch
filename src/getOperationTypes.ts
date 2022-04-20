@@ -19,11 +19,13 @@ import {
 import { InterfaceType } from './InterfaceType';
 import { flatten } from './flatten';
 import { getResponseMIMEType } from './getMIMEType';
+import { SwaggerProcessingOptions } from './readConfig';
 
 export function getOperationTypes(
   swagger: Spec,
   dir: string,
   method: Method,
+  processingOptions: SwaggerProcessingOptions,
 ): InterfaceType[] {
   const operation = swagger.paths[dir][method];
   if (!operation) {
@@ -106,7 +108,7 @@ export function getOperationTypes(
   const definitions = gatherSchemas(swagger, fetcherSchemas);
 
   return [
-    ...swaggerSchemaDictToTypeScript(definitions),
+    ...swaggerSchemaDictToTypeScript(definitions, processingOptions),
 
     ...flatten(
       responsesList.map((response): InterfaceType[] => {

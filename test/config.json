@@ -6,8 +6,11 @@
             "remote": {
                 "url": "https://generator.swagger.io/api/swagger.json"
             },
-            "factory": true
+            "options": {
+                "factory": true,
+                "propertiesAlwaysRequired": true
+            },
+            "output": "output"
         }
-    ],
-    "output": "output"
+    ]
 }

@@ -24,27 +24,21 @@ commander
   .arguments('<file>')
   .action(async configFilename => {
     const configDirname: string = path.dirname(configFilename);
-    const config = await readConfig(configFilename);
-
-    try {
-      process.umask(0);
-      fs.mkdirSync(path.resolve(configDirname, config.output), 0o777);
-    } catch (e) {
-      null;
-    }
+    const swaggerDescriptions = await readConfig(configFilename);
 
     const swaggers = getSwaggerFiles(
-      config.swaggers,
+      swaggerDescriptions,
       configDirname,
       signale.scope('config'),
     );
 
-    for await (const { config: swaggerConfig, spec } of swaggers) {
+    for await (const { config, spec } of swaggers) {
       const outputDir = path.resolve(
         configDirname,
         config.output ? config.output : '',
       );
-      const { name } = swaggerConfig;
+
+      const { name } = config;
       const specSignale = signale.scope(name);
 
       const fileName = path.resolve(outputDir, `${name}.ts`);
@@ -59,8 +53,15 @@ commander
       const fileSignale = signale.scope(name, fileName);
       const prettierConfig = await prettier.resolveConfig(fileName);
 
-      for (const contents of processSpec(swaggerConfig, spec, specSignale)) {
+      for (const contents of processSpec(config, spec, specSignale)) {
         output.push(contents);
+      }
+
+      try {
+        process.umask(0);
+        fs.mkdirSync(path.resolve(configDirname, config.output), 0o777);
+      } catch (e) {
+        null;
       }
 
       let formattedOutput;

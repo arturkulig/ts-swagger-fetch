@@ -14,8 +14,6 @@ Config file is a json file that is expressed with this interface - `ConfigFile`.
 
 ```typescript
 interface ConfigFile {
-  // path relative to the config file
-  output: string;
   swaggers: SwaggerFileDescriptor[];
 }
 
@@ -30,14 +28,29 @@ interface SwaggerFileDescriptor {
   // swagger definition remote location information
   remote: SwaggerRemoteFileDescriptor;
 
-  // should a factory function
-  // allowing replacing window.fetch
-  // be generated
-  factory?: boolean;
+  // path relative to the config file
+  output: string;
 
   // Object here will override (overshadow)
   // contents of the swagger definition file
   overrides?: Partial<Spec>;
+
+  options?: {
+    // should a factory function
+    // allowing replacing window.fetch
+    // be generated
+    outputsFactory?: boolean;
+
+    // Object properties
+    // can specify (but may not to)
+    // whether it will definitely be present
+    // through a 'required' flag.
+    // Some integrations do not output them.
+    // This option doesn't check for the flag
+    // to determine whether a field should be marked
+    // as optional in the typescript output.
+    propertiesAlwaysRequired?: boolean;
+  }
 }
 
 interface SwaggerRemoteFileDescriptor {
@@ -86,7 +99,11 @@ async function shoutOutPet(id: number) {
 ```typescript
 import { petFactory } from './test/output/pet';
 
-const pet = petFactory(window.fetch);
+const pet = petFactory(
+  window.fetch
+  /* ...but can be a custom function
+  of the same interface */
+);
 
 async function shoutOutPet(id: number) {
   const response = await pet('get /pet/{petId}', {

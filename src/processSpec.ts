@@ -14,6 +14,9 @@ export function* processSpec(
 ): Iterable<string> {
   const basePath = swagger.basePath || '';
   signale.scope(basePath).start();
+  signale
+    .scope(basePath)
+    .debug('config:', JSON.stringify(swaggerConfig, null, '  '));
 
   const supportTypeDefinitions: Record<string, InterfaceType> = {};
   const operationDefinitions = new Array<string>();
@@ -41,7 +44,12 @@ export function* processSpec(
           const opName = getOperationName(operation);
           const OpName = capitalize(opName);
 
-          for (const supportType of getOperationTypes(swagger, dir, method)) {
+          for (const supportType of getOperationTypes(
+            swagger,
+            dir,
+            method,
+            swaggerConfig.options,
+          )) {
             supportTypeDefinitions[supportType.name] = supportType;
           }
 
@@ -66,7 +74,7 @@ export function* processSpec(
     yield formatExportedInterface(supportType);
   }
 
-  const { name, factory = false } = swaggerConfig;
+  const { name, options } = swaggerConfig;
 
   yield `
     export interface ${name}ReqResRepo {
@@ -96,7 +104,7 @@ export function* processSpec(
     }
   `;
 
-  if (!factory) {
+  if (!options.outputsFactory) {
     yield `
       export function ${name}<T extends keyof ${name}ReqResRepo>
       (command: T, request: ${name}ReqResRepo[T]['req'], init?: RequestInit):
@@ -110,9 +118,7 @@ export function* processSpec(
         ) as any;
       }
       `;
-  }
-
-  if (factory) {
+  } else {
     yield `
       export function ${name}Factory
       (fetch = window.fetch)
