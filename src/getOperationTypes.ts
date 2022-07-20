@@ -53,14 +53,12 @@ export function getOperationTypes(
   fetcherSchemas[`${OpName}Request`] = {
     type: 'object',
     required: [
-      // 'command',
       ...(pathParameters.length ? ['path'] : []),
       ...(bodyParameters.length ? ['body'] : []),
       ...(queryParameters.length ? ['query'] : []),
-      ...(formDataParameters.length ? ['formData'] : []),
+      ...(formDataParameters.length ? ['form'] : []),
     ],
     properties: {
-      // command: { type: 'string', enum: [`${method} ${dir}`] },
       ...(pathParameters.length
         ? { path: parameters2ObjDef(pathParameters) }
         : {}),
@@ -71,7 +69,7 @@ export function getOperationTypes(
         ? { query: parameters2ObjDef(queryParameters) }
         : {}),
       ...(formDataParameters.length
-        ? { formData: parameters2ObjDef(formDataParameters) }
+        ? { form: parameters2ObjDef(formDataParameters) }
         : {}),
     },
   };
